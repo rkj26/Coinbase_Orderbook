@@ -13,7 +13,7 @@ class OrderBook:
     Orderbook Class for maintaining
     '''
 
-    def __init__(self):
+    def __init__(self, depth=10):
         '''
         Basic initialisation Parameters
         '''
@@ -22,9 +22,10 @@ class OrderBook:
         self.training_data = []
         self.uri = 'wss://ws-feed.pro.coinbase.com'
         self.socket = websockets
-
+        self.depth = depth
     async def connect(self, product_id='BTC-USD'):
         'Connects to CoinBase Websocket'
+        print('Completed this!')
         self.socket = await websockets.connect(self.uri, ping_interval=None)
         message = {
             "type": "subscribe",
@@ -37,6 +38,9 @@ class OrderBook:
         while True:
             received = await self.socket.recv()
             received = json.loads(received)
+            # print(received)
+            # top = await self.get_top()
+            # print(top)
             await self.update(received)
 
     def add_side(self, elements, side):
@@ -67,9 +71,10 @@ class OrderBook:
             self.last_update = message['time']
             change = message['changes'][0]
             self.update_side(change)
+        await self.build_record()
 
-    async def build_record(self, depth):
-        record = await self.get_top(depth)
+    async def build_record(self):
+        record = await self.get_top()
         await self.build_training_data(100, record)
 
     async def build_training_data(self, timestep, record):
@@ -90,9 +95,9 @@ class OrderBook:
             return self.training_data
         return None
 
-    async def get_top(self, depth):
-        bids = sorted(self.state['bids'].keys(), reverse=True)[:depth]
-        asks = sorted(self.state['asks'].keys())[:depth]
+    async def get_top(self):
+        bids = sorted(self.state['bids'].keys(), reverse=True)[:self.depth]
+        asks = sorted(self.state['asks'].keys())[:self.depth]
         bid_volumes = [self.state['bids'][x] for x in bids]
         ask_volumes = [self.state['asks'][x] for x in asks]
         record = bids+asks+bid_volumes+ask_volumes
